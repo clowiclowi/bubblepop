@@ -8,11 +8,38 @@
 import SwiftUI
 
 struct PlayerNameView: View {
+    @Binding var isGameStarted: Bool
+    @Binding var playerName: String // Correctly bind the player name to the parent view
+    
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            Text("Enter Your Name")
+                .font(.largeTitle)
+                .padding()
+
+            TextField("Your Name", text: $playerName) // Binding to playerName
+                .padding()
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .autocapitalization(.none)
+            
+            Button(action: {
+                if !playerName.isEmpty {
+                    isGameStarted = true // Start the game if name is entered
+                }
+            }) {
+                Text("Start Game")
+                    .padding()
+                    .background(playerName.isEmpty ? Color.gray : Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                    .disabled(playerName.isEmpty)
+            }
+            .padding()
+        }
+        .padding()
     }
 }
 
 #Preview {
-    PlayerNameView()
+    PlayerNameView(isGameStarted: .constant(false), playerName: .constant("")) // Mock bindings for preview
 }
