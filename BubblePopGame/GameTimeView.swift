@@ -7,19 +7,16 @@
 import SwiftUI
 
 struct GameTimeView: View {
-    @State private var timeRemaining = 60
+    @Binding var timeRemaining: Int
     @State private var timer: Timer? = nil
-    
     
     var body: some View {
         Text("Time remaining = \(timeRemaining) seconds ")
             .font(.title)
             .padding()
-        
             .onAppear {
                 startTimer()
             }
-        
             .onDisappear {
                 timer?.invalidate()
             }
@@ -27,7 +24,6 @@ struct GameTimeView: View {
     
     func startTimer() {
         timer?.invalidate()
-        timeRemaining = 60
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
                 timeRemaining -= 1
@@ -39,5 +35,5 @@ struct GameTimeView: View {
 }
 
 #Preview {
-    GameTimeView()
+    GameTimeView(timeRemaining: .constant(60))
 }

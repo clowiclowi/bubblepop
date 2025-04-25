@@ -11,6 +11,10 @@ struct ContentView: View {
     @State private var isGameOver = false
     @State private var consecutivePops = 0
     @State private var playerName = ""  // Store the player name
+    @State private var screenSize: CGSize = .zero
+    @State private var bubbleRadius: CGFloat = 20 // Half of bubble width/height
+    @State private var settings = GameSettings.defaultSettings
+    @State private var showSettings = false
 
     let bubbleColors = ["red", "pink", "green", "blue", "black"]
     let bubbleProbabilities: [String: Double] = [
@@ -24,38 +28,61 @@ struct ContentView: View {
     @State private var isGameStarted = false
 
     var body: some View {
-        VStack {
-            if !isGameStarted {
-                PlayerNameView(isGameStarted: $isGameStarted, playerName: $playerName)
-            } else {
-                Text("Welcome, \(playerName)!")
-                    .font(.title)
-                    .padding()
-                
-                GameTimeView()
-
-                ScoreView(score: $score)
-                
-                ForEach(bubbles, id: \.position) { bubble in
-                    BubbleView(bubble: bubble) {
-                        bubbleTapped(bubble)
+        GeometryReader { geometry in
+            VStack {
+                if !isGameStarted {
+                    PlayerNameView(isGameStarted: $isGameStarted, playerName: $playerName)
+                } else {
+                    HStack {
+                        Text("Welcome, \(playerName)!")
+                            .font(.title)
+                            .padding()
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            showSettings = true
+                        }) {
+                            Image(systemName: "gear")
+                                .font(.title)
+                                .padding()
+                        }
                     }
+                    
+                    GameTimeView(timeRemaining: $timeRemaining)
+                    
+                    ScoreView(score: $score)
+                    
+                    ZStack {
+                        ForEach(bubbles, id: \.position) { bubble in
+                            BubbleView(bubble: bubble) {
+                                bubbleTapped(bubble)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onAppear {
+                        screenSize = geometry.size
+                    }
+                    
+                    if isGameOver {
+                        let highScore = UserDefaults.standard.integer(forKey: "highScore")
+                        Text("Game Over! Your final score is \(score)\nHigh Score: \(highScore)")
+                            .font(.headline)
+                            .padding()
+                    }
+                    
+                    Spacer()
                 }
-                
-                if isGameOver {
-                    let highScore = UserDefaults.standard.integer(forKey: "highScore") // Get high score from UserDefaults
-                    Text("Game Over! Your final score is \(score)\nHigh Score: \(highScore)")
-                        .font(.headline)
-                        .padding()
-                }
-                
-                Spacer()
             }
-        }
-        .padding()
-        .onAppear {
-            if isGameStarted {
-                startGame()
+            .padding()
+            .onAppear {
+                if isGameStarted {
+                    startGame()
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView(settings: $settings)
             }
         }
     }
@@ -73,7 +100,7 @@ struct ContentView: View {
     func startGame() {
         score = 0
         isGameOver = false
-        timeRemaining = 60
+        timeRemaining = settings.gameTime
         
         // Generate bubbles every second
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
@@ -86,18 +113,56 @@ struct ContentView: View {
     }
     
     func generateBubbles() {
-        let randomCount = Int.random(in: 1...15)
+        let randomCount = Int.random(in: 1...settings.maxBubbles)
         var newBubbles: [Bubble] = []
         
-        for _ in 0..<randomCount {
+        // Keep some existing bubbles
+        let bubblesToKeep = Int.random(in: 0...bubbles.count)
+        if bubblesToKeep > 0 {
+            newBubbles.append(contentsOf: bubbles.prefix(bubblesToKeep))
+        }
+        
+        // Generate new bubbles
+        while newBubbles.count < randomCount {
             let randomColor = getRandomBubbleColor()
             let points = getPoints(for: randomColor)
-            let randomPosition = CGPoint(x: CGFloat.random(in: 0...UIScreen.main.bounds.width), y: CGFloat.random(in: 0...UIScreen.main.bounds.height))
             
-            newBubbles.append(Bubble(color: randomColor, points: points, position: randomPosition))
+            // Try to find a valid position for the new bubble
+            if let position = findValidPosition(for: newBubbles) {
+                newBubbles.append(Bubble(color: randomColor, points: points, position: position))
+            }
         }
         
         bubbles = newBubbles
+    }
+    
+    func findValidPosition(for existingBubbles: [Bubble]) -> CGPoint? {
+        let maxAttempts = 50 // Prevent infinite loops
+        var attempts = 0
+        
+        while attempts < maxAttempts {
+            // Generate random position within safe bounds
+            let x = CGFloat.random(in: bubbleRadius...(screenSize.width - bubbleRadius))
+            let y = CGFloat.random(in: bubbleRadius...(screenSize.height - bubbleRadius))
+            let newPosition = CGPoint(x: x, y: y)
+            
+            // Check if this position overlaps with any existing bubble
+            let isOverlapping = existingBubbles.contains { existingBubble in
+                let distance = sqrt(
+                    pow(existingBubble.position.x - newPosition.x, 2) +
+                    pow(existingBubble.position.y - newPosition.y, 2)
+                )
+                return distance < bubbleRadius * 2 // Minimum distance between bubble centers
+            }
+            
+            if !isOverlapping {
+                return newPosition
+            }
+            
+            attempts += 1
+        }
+        
+        return nil // Could not find valid position after max attempts
     }
     
     func getRandomBubbleColor() -> String {
