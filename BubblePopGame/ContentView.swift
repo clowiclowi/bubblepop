@@ -71,9 +71,12 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onAppear {
+                        // Update screen size when the view appears
                         screenSize = geometry.size
-                        // Generate initial bubbles when game starts
-                        generateBubbles()
+                    }
+                    .onChange(of: geometry.size) { newSize in
+                        // Update screen size when the geometry changes
+                        screenSize = newSize
                     }
                     
                     if isGameOver {
@@ -188,10 +191,22 @@ struct ContentView: View {
         let maxAttempts = 50 // Prevent infinite loops
         var attempts = 0
         
+        // Ensure we have valid screen dimensions
+        guard screenSize.width > 0, screenSize.height > 0 else {
+            return nil
+        }
+        
         while attempts < maxAttempts {
             // Generate random position within safe bounds
             let x = CGFloat.random(in: bubbleRadius...(screenSize.width - bubbleRadius))
             let y = CGFloat.random(in: bubbleRadius...(screenSize.height - bubbleRadius))
+            
+            // Ensure we have valid coordinates
+            guard !x.isNaN && !y.isNaN else {
+                attempts += 1
+                continue
+            }
+            
             let newPosition = CGPoint(x: x, y: y)
             
             // Check if this position overlaps with any existing bubble
