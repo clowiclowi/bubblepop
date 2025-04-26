@@ -63,6 +63,8 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onAppear {
                         screenSize = geometry.size
+                        // Generate initial bubbles when game starts
+                        generateBubbles()
                     }
                     
                     if isGameOver {
@@ -101,6 +103,10 @@ struct ContentView: View {
         score = 0
         isGameOver = false
         timeRemaining = settings.gameTime
+        bubbles = [] // Clear existing bubbles
+        
+        // Generate initial bubbles
+        generateBubbles()
         
         // Generate bubbles every second
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
