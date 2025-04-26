@@ -16,6 +16,7 @@ struct ContentView: View {
     @State var settings = GameSettings.defaultSettings
     @State var showSettings = false
     @State var showHighScores = false
+    @State var isScreenSizeReady = false
 
     let bubbleColors = ["red", "pink", "green", "blue", "black"]
     let bubbleProbabilities: [String: Double] = [
@@ -73,6 +74,7 @@ struct ContentView: View {
                     .background(Color(.systemBackground))
                     .onAppear {
                         screenSize = geometry.size
+                        isScreenSizeReady = true
                         print("Screen size set to: \(screenSize)")
                     }
                     .onChange(of: geometry.size) { _, newSize in
@@ -123,7 +125,7 @@ struct ContentView: View {
             .padding()
             .onAppear {
                 if isGameStarted {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         startGame()
                     }
                 }
@@ -148,17 +150,23 @@ struct ContentView: View {
     }
 
     func startGame() {
+        guard isScreenSizeReady else {
+            print("Waiting for screen size to be ready...")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                startGame()
+            }
+            return
+        }
+        
         print("Starting game with screen size: \(screenSize)")
         score = 0
         isGameOver = false
         timeRemaining = settings.gameTime
         bubbles = []
         
-        // Generate initial bubbles immediately
         generateBubbles()
         print("Initial bubbles generated: \(bubbles.count)")
         
-        // Timer only for game time, not bubble generation
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
                 timeRemaining -= 1
@@ -169,13 +177,12 @@ struct ContentView: View {
     }
     
     func generateBubbles() {
-        // Validate screen size before generating bubbles
-        guard screenSize.width > 0, screenSize.height > 0 else {
-            print("Cannot generate bubbles: Invalid screen size")
+        guard isScreenSizeReady, screenSize.width > 0, screenSize.height > 0 else {
+            print("Cannot generate bubbles: Screen size not ready")
             return
         }
         
-        let randomCount = Int.random(in: 1...min(settings.maxBubbles, 10)) // Limit max bubbles for performance
+        let randomCount = Int.random(in: 1...min(settings.maxBubbles, 10))
         var newBubbles: [Bubble] = []
         
         // Keep existing bubbles that have valid positions
@@ -184,7 +191,7 @@ struct ContentView: View {
         })
         
         // Generate new bubbles
-        let maxAttempts = 3 // Limit attempts for better performance
+        let maxAttempts = 5
         var attempts = 0
         
         while newBubbles.count < randomCount && attempts < maxAttempts {
@@ -201,7 +208,7 @@ struct ContentView: View {
     }
     
     func findValidPosition(for existingBubbles: [Bubble]) -> CGPoint? {
-        let maxAttempts = 10 // Reduced further for better performance
+        let maxAttempts = 10
         var attempts = 0
         
         // Validate screen size
