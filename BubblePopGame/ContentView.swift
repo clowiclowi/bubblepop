@@ -173,22 +173,24 @@ struct ContentView: View {
         newBubbles.append(contentsOf: bubbles)
         
         // Generate new bubbles until we reach the desired count
-        while newBubbles.count < randomCount {
+        let maxAttempts = 5 // Limit the number of attempts to generate new bubbles
+        var attempts = 0
+        
+        while newBubbles.count < randomCount && attempts < maxAttempts {
             let randomColor = getRandomBubbleColor()
             let points = getPoints(for: randomColor)
             
             if let position = findValidPosition(for: newBubbles) {
                 newBubbles.append(Bubble(color: randomColor, points: points, position: position))
-            } else {
-                print("Failed to find valid position for new bubble")
             }
+            attempts += 1
         }
         
         bubbles = newBubbles
     }
     
     func findValidPosition(for existingBubbles: [Bubble]) -> CGPoint? {
-        let maxAttempts = 50
+        let maxAttempts = 20 // Reduced from 50 to improve performance
         var attempts = 0
         
         guard screenSize.width > 0, screenSize.height > 0 else {
@@ -196,9 +198,18 @@ struct ContentView: View {
             return nil
         }
         
+        // Pre-calculate the valid area
+        let minX = bubbleRadius
+        let maxX = screenSize.width - bubbleRadius
+        let minY = bubbleRadius
+        let maxY = screenSize.height - bubbleRadius
+        
+        // Pre-calculate the minimum distance squared for faster comparison
+        let minDistanceSquared = pow(bubbleRadius * 2, 2)
+        
         while attempts < maxAttempts {
-            let x = CGFloat.random(in: bubbleRadius...(screenSize.width - bubbleRadius))
-            let y = CGFloat.random(in: bubbleRadius...(screenSize.height - bubbleRadius))
+            let x = CGFloat.random(in: minX...maxX)
+            let y = CGFloat.random(in: minY...maxY)
             
             guard !x.isNaN && !y.isNaN else {
                 attempts += 1
@@ -207,12 +218,11 @@ struct ContentView: View {
             
             let newPosition = CGPoint(x: x, y: y)
             
+            // Use squared distance for faster comparison
             let isOverlapping = existingBubbles.contains { existingBubble in
-                let distance = sqrt(
-                    pow(existingBubble.position.x - newPosition.x, 2) +
-                    pow(existingBubble.position.y - newPosition.y, 2)
-                )
-                return distance < bubbleRadius * 2
+                let dx = existingBubble.position.x - newPosition.x
+                let dy = existingBubble.position.y - newPosition.y
+                return (dx * dx + dy * dy) < minDistanceSquared
             }
             
             if !isOverlapping {
