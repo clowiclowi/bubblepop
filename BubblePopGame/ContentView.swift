@@ -169,14 +169,22 @@ struct ContentView: View {
     }
     
     func generateBubbles() {
-        let randomCount = Int.random(in: 1...settings.maxBubbles)
+        // Validate screen size before generating bubbles
+        guard screenSize.width > 0, screenSize.height > 0 else {
+            print("Cannot generate bubbles: Invalid screen size")
+            return
+        }
+        
+        let randomCount = Int.random(in: 1...min(settings.maxBubbles, 10)) // Limit max bubbles for performance
         var newBubbles: [Bubble] = []
         
-        // Keep existing bubbles
-        newBubbles.append(contentsOf: bubbles)
+        // Keep existing bubbles that have valid positions
+        newBubbles.append(contentsOf: bubbles.filter { bubble in
+            !bubble.position.x.isNaN && !bubble.position.y.isNaN
+        })
         
-        // Generate new bubbles until we reach the desired count
-        let maxAttempts = 5 // Limit the number of attempts to generate new bubbles
+        // Generate new bubbles
+        let maxAttempts = 3 // Limit attempts for better performance
         var attempts = 0
         
         while newBubbles.count < randomCount && attempts < maxAttempts {
@@ -193,35 +201,43 @@ struct ContentView: View {
     }
     
     func findValidPosition(for existingBubbles: [Bubble]) -> CGPoint? {
-        let maxAttempts = 20 // Reduced from 50 to improve performance
+        let maxAttempts = 10 // Reduced further for better performance
         var attempts = 0
         
-        guard screenSize.width > 0, screenSize.height > 0 else {
+        // Validate screen size
+        guard screenSize.width > bubbleRadius * 2,
+              screenSize.height > bubbleRadius * 2,
+              !screenSize.width.isNaN,
+              !screenSize.height.isNaN else {
             print("Invalid screen size: \(screenSize)")
             return nil
         }
         
-        // Pre-calculate the valid area
+        // Pre-calculate the valid area with safety margins
         let minX = bubbleRadius
-        let maxX = screenSize.width - bubbleRadius
+        let maxX = max(minX, screenSize.width - bubbleRadius)
         let minY = bubbleRadius
-        let maxY = screenSize.height - bubbleRadius
+        let maxY = max(minY, screenSize.height - bubbleRadius)
         
-        // Pre-calculate the minimum distance squared for faster comparison
+        // Pre-calculate the minimum distance squared
         let minDistanceSquared = pow(bubbleRadius * 2, 2)
         
         while attempts < maxAttempts {
+            // Generate random position with validation
             let x = CGFloat.random(in: minX...maxX)
             let y = CGFloat.random(in: minY...maxY)
             
-            guard !x.isNaN && !y.isNaN else {
+            // Validate generated coordinates
+            guard !x.isNaN && !y.isNaN,
+                  x >= minX && x <= maxX,
+                  y >= minY && y <= maxY else {
                 attempts += 1
                 continue
             }
             
             let newPosition = CGPoint(x: x, y: y)
             
-            // Use squared distance for faster comparison
+            // Check for overlaps using squared distance
             let isOverlapping = existingBubbles.contains { existingBubble in
                 let dx = existingBubble.position.x - newPosition.x
                 let dy = existingBubble.position.y - newPosition.y
