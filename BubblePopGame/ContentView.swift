@@ -152,13 +152,14 @@ struct ContentView: View {
         timeRemaining = settings.gameTime
         bubbles = []
         
+        // Generate initial bubbles immediately
         generateBubbles()
         print("Initial bubbles generated: \(bubbles.count)")
         
+        // Timer only for game time, not bubble generation
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
-                generateBubbles()
-                print("Generated new bubbles. Total count: \(bubbles.count)")
+                timeRemaining -= 1
             } else {
                 endGame()
             }
@@ -169,11 +170,10 @@ struct ContentView: View {
         let randomCount = Int.random(in: 1...settings.maxBubbles)
         var newBubbles: [Bubble] = []
         
-        let bubblesToKeep = Int.random(in: 0...bubbles.count)
-        if bubblesToKeep > 0 {
-            newBubbles.append(contentsOf: bubbles.prefix(bubblesToKeep))
-        }
+        // Keep existing bubbles
+        newBubbles.append(contentsOf: bubbles)
         
+        // Generate new bubbles until we reach the desired count
         while newBubbles.count < randomCount {
             let randomColor = getRandomBubbleColor()
             let points = getPoints(for: randomColor)
@@ -260,7 +260,11 @@ struct ContentView: View {
         
         consecutivePops += 1
         
+        // Remove the popped bubble
         bubbles.removeAll { $0.position == bubble.position }
+        
+        // Immediately generate a new bubble to replace it
+        generateBubbles()
     }
     
     func endGame() {
