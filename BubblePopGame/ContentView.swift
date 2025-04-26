@@ -36,134 +36,175 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            VStack {
-                if !showEnterNameScreen {
-                    // Welcome screen
-                    VStack {
-                        Spacer()
-                        Text("Welcome to Bubble Pop!")
-                            .font(.largeTitle)
-                            .bold()
-                            .padding()
-
-                        Button(action: {
-                            showEnterNameScreen = true
-                        }) {
-                            Text("Start")
-                                .font(.title2)
-                                .padding()
-                                .background(Color.blue)
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [Color(red: 0.1, green: 0.2, blue: 0.3), Color(red: 0.2, green: 0.3, blue: 0.4)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+                
+                VStack {
+                    if !showEnterNameScreen {
+                        // Welcome screen
+                        VStack {
+                            Spacer()
+                            Text("Welcome to Bubble Pop!")
+                                .font(.system(size: 40, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
-                                .cornerRadius(10)
-                        }
-                        .padding()
-                        Spacer()
-                    }
-                } else if !isGameStarted {
-                    // Enter name screen
-                    PlayerNameView(isGameStarted: $isGameStarted, playerName: $playerName, onStartGame: startGame)
-                } else {
-                    // Game screen
-                    HStack {
-                        Text("Welcome, \(playerName)!")
-                            .font(.title)
-                            .padding()
-
-                        Spacer()
-
-                        Button(action: {
-                            showHighScores = true
-                        }) {
-                            Image(systemName: "trophy")
-                                .font(.title)
+                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
                                 .padding()
-                        }
-
-                        Button(action: {
-                            showSettings = true
-                        }) {
-                            Image(systemName: "gear")
-                                .font(.title)
-                                .padding()
-                        }
-                    }
-
-                    HStack {
-                        GameTimeView(timeRemaining: $timeRemaining)
-
-                        Spacer()
-
-                        VStack {
-                            Text("Score: \(score)")
-                                .font(.title)
-
-                            if let highScore = HighScoreManager.shared.getHighScores().first {
-                                Text("High Score: \(highScore.score)")
-                                    .font(.headline)
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                        .padding()
-                    }
-
-                    ZStack {
-                        ForEach(bubbles) { bubble in
-                            BubbleView(bubble: bubble) {
-                                bubbleTapped(bubble)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(.systemBackground))
-                    .onAppear {
-                        screenSize = geometry.size
-                        print("Screen size set to: \(screenSize)")
-                    }
-                    .onChange(of: geometry.size) { _, newSize in
-                        screenSize = newSize
-                        print("Screen size updated to: \(newSize)")
-                    }
-
-                    if isGameOver {
-                        VStack {
-                            Text("Game Over!")
-                                .font(.largeTitle)
-                                .padding()
-
-                            Text("Your final score: \(score)")
-                                .font(.title)
-                                .padding()
-
-                            if HighScoreManager.shared.isHighScore(score) {
-                                Text("New High Score! 🎉")
-                                    .font(.title2)
-                                    .foregroundColor(.green)
-                                    .padding()
-                            }
-
+                            
                             Button(action: {
-                                isGameOver = false
-                                startGame()
+                                showEnterNameScreen = true
                             }) {
-                                Text("Play Again")
-                                    .font(.title2)
+                                Text("Start")
+                                    .font(.system(size: 24, weight: .bold, design: .rounded))
                                     .padding()
-                                    .background(Color.blue)
+                                    .frame(width: 200)
+                                    .background(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [.blue, .blue.opacity(0.8)]),
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
                                     .foregroundColor(.white)
-                                    .cornerRadius(10)
+                                    .cornerRadius(15)
+                                    .shadow(color: .black.opacity(0.2), radius: 5, x: 0, y: 3)
+                            }
+                            .padding()
+                            Spacer()
+                        }
+                    } else if !isGameStarted {
+                        // Enter name screen
+                        PlayerNameView(isGameStarted: $isGameStarted, playerName: $playerName, onStartGame: startGame)
+                    } else {
+                        // Game screen
+                        HStack {
+                            Text("Welcome, \(playerName)!")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                                .padding()
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                showHighScores = true
+                            }) {
+                                Image(systemName: "trophy.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.yellow)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                                    .padding()
+                            }
+                            
+                            Button(action: {
+                                showSettings = true
+                            }) {
+                                Image(systemName: "gear")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                                    .padding()
+                            }
+                        }
+                        
+                        HStack {
+                            GameTimeView(timeRemaining: $timeRemaining)
+                            
+                            Spacer()
+                            
+                            VStack {
+                                Text("Score: \(score)")
+                                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                                
+                                if let highScore = HighScoreManager.shared.getHighScores().first {
+                                    Text("High Score: \(highScore.score)")
+                                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                        .foregroundColor(.yellow)
+                                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                                }
                             }
                             .padding()
                         }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(20)
-                        .shadow(radius: 10)
-                    }
+                        
+                        ZStack {
+                            ForEach(bubbles) { bubble in
+                                BubbleView(bubble: bubble) {
+                                    bubbleTapped(bubble)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black.opacity(0.1))
+                        .onAppear {
+                            screenSize = geometry.size
+                            print("Screen size set to: \(screenSize)")
+                        }
+                        .onChange(of: geometry.size) { _, newSize in
+                            screenSize = newSize
+                            print("Screen size updated to: \(newSize)")
+                        }
 
-                    Spacer()
+                        if isGameOver {
+                            VStack {
+                                Text("Game Over!")
+                                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                                    .padding()
+                                
+                                Text("Your final score: \(score)")
+                                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                                    .padding()
+                                
+                                if HighScoreManager.shared.isHighScore(score) {
+                                    Text("New High Score! 🎉")
+                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                        .foregroundColor(.yellow)
+                                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                                        .padding()
+                                }
+                                
+                                Button(action: {
+                                    isGameOver = false
+                                    startGame()
+                                }) {
+                                    Text("Play Again")
+                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                        .padding()
+                                        .frame(width: 200)
+                                        .background(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [.blue, .blue.opacity(0.8)]),
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                        )
+                                        .foregroundColor(.white)
+                                        .cornerRadius(15)
+                                        .shadow(color: .black.opacity(0.2), radius: 5, x: 0, y: 3)
+                                }
+                                .padding()
+                            }
+                            .padding()
+                            .background(Color.black.opacity(0.7))
+                            .cornerRadius(20)
+                            .shadow(radius: 10)
+                        }
+                        
+                        Spacer()
+                    }
                 }
+                .padding()
             }
-            .padding()
             .sheet(isPresented: $showSettings) {
                 SettingsView(settings: $settings)
             }
