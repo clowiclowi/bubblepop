@@ -7,7 +7,8 @@
 
 import SwiftUI
 
-struct Bubble {
+struct Bubble: Identifiable { 
+    var id = UUID()
     var color: String
     var points: Int
     var position: CGPoint

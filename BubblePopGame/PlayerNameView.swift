@@ -9,22 +9,25 @@ import SwiftUI
 
 struct PlayerNameView: View {
     @Binding var isGameStarted: Bool
-    @Binding var playerName: String // Correctly bind the player name to the parent view
-    
+    @Binding var playerName: String
+    var onStartGame: () -> Void // <-- Add this
+
     var body: some View {
         VStack {
             Text("Enter Your Name")
                 .font(.largeTitle)
                 .padding()
 
-            TextField("Your Name", text: $playerName) // Binding to playerName
+            TextField("Your Name", text: $playerName)
                 .padding()
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                .autocapitalization(.none)
+                .textInputAutocapitalization(.never) // updated SwiftUI for autocapitalization
+                .disableAutocorrection(true)
             
             Button(action: {
                 if !playerName.isEmpty {
-                    isGameStarted = true // Start the game if name is entered
+                    isGameStarted = true
+                    onStartGame() // <-- Call startGame here
                 }
             }) {
                 Text("Start Game")
@@ -41,5 +44,6 @@ struct PlayerNameView: View {
 }
 
 #Preview {
-    PlayerNameView(isGameStarted: .constant(false), playerName: .constant("")) // Mock bindings for preview
+    PlayerNameView(isGameStarted: .constant(false), playerName: .constant(""), onStartGame: {})
 }
+
