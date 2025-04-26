@@ -5,17 +5,17 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var score = 0
-    @State private var timeRemaining = 60
-    @State private var bubbles: [Bubble] = []
-    @State private var isGameOver = false
-    @State private var consecutivePops = 0
-    @State private var playerName = ""  // Store the player name
-    @State private var screenSize: CGSize = .zero
-    @State private var bubbleRadius: CGFloat = 20 // Half of bubble width/height
-    @State private var settings = GameSettings.defaultSettings
-    @State private var showSettings = false
-    @State private var showHighScores = false
+    @State var score = 0
+    @State var timeRemaining = 60
+    @State var bubbles: [Bubble] = []
+    @State var isGameOver = false
+    @State var consecutivePops = 0
+    @State var playerName = ""  // Store the player name
+    @State var screenSize: CGSize = .zero
+    @State var bubbleRadius: CGFloat = 20 // Half of bubble width/height
+    @State var settings = GameSettings.defaultSettings
+    @State var showSettings = false
+    @State var showHighScores = false
 
     let bubbleColors = ["red", "pink", "green", "blue", "black"]
     let bubbleProbabilities: [String: Double] = [
@@ -26,7 +26,7 @@ struct ContentView: View {
         "black": 0.05
     ]
     
-    @State private var isGameStarted = false
+    @State var isGameStarted = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -80,7 +80,6 @@ struct ContentView: View {
                     
                     if isGameOver {
                         VStack {
-                            let highScores = HighScoreManager.shared.getHighScores()
                             Text("Game Over!")
                                 .font(.largeTitle)
                                 .padding()
