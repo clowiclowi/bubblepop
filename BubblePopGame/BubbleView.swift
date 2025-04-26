@@ -24,8 +24,9 @@ struct BubbleView: View {
             .frame(width: 40, height: 40)
             .position(bubble.position)
             .onTapGesture {
-                onTap() //
+                onTap()
             }
+            .shadow(radius: 2)
     }
     
     func getColor(for color: String) -> Color {

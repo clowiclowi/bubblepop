@@ -70,11 +70,14 @@ struct ContentView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
                     .onAppear {
                         screenSize = geometry.size
+                        print("Screen size set to: \(screenSize)")
                     }
                     .onChange(of: geometry.size) { _, newSize in
                         screenSize = newSize
+                        print("Screen size updated to: \(newSize)")
                     }
 
                     
