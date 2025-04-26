@@ -1,6 +1,6 @@
+//
 // ContentView.swift
-
-
+// ContentView.swift
 
 import SwiftUI
 
@@ -71,13 +71,12 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onAppear {
-                        // Update screen size when the view appears
                         screenSize = geometry.size
                     }
-                    .onChange(of: geometry.size) { newSize in
-                        // Update screen size when the geometry changes
+                    .onChange(of: geometry.size) { _, newSize in
                         screenSize = newSize
                     }
+
                     
                     if isGameOver {
                         VStack {
@@ -122,7 +121,9 @@ struct ContentView: View {
             .padding()
             .onAppear {
                 if isGameStarted {
-                    startGame()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        startGame()
+                    }
                 }
             }
             .sheet(isPresented: $showSettings) {
@@ -135,7 +136,7 @@ struct ContentView: View {
     }
     
     struct ScoreView: View {
-        @Binding var score: Int  // Bind the score to the parent view
+        @Binding var score: Int
 
         var body: some View {
             Text("Score: \(score)")
@@ -145,20 +146,21 @@ struct ContentView: View {
     }
 
     func startGame() {
+        print("Starting game with screen size: \(screenSize)")
         score = 0
         isGameOver = false
         timeRemaining = settings.gameTime
-        bubbles = [] // Clear existing bubbles
+        bubbles = []
         
-        // Generate initial bubbles
         generateBubbles()
+        print("Initial bubbles generated: \(bubbles.count)")
         
-        // Generate bubbles every second
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
                 generateBubbles()
+                print("Generated new bubbles. Total count: \(bubbles.count)")
             } else {
-                endGame() // End the game when time runs out
+                endGame()
             }
         }
     }
@@ -167,20 +169,19 @@ struct ContentView: View {
         let randomCount = Int.random(in: 1...settings.maxBubbles)
         var newBubbles: [Bubble] = []
         
-        // Keep some existing bubbles
         let bubblesToKeep = Int.random(in: 0...bubbles.count)
         if bubblesToKeep > 0 {
             newBubbles.append(contentsOf: bubbles.prefix(bubblesToKeep))
         }
         
-        // Generate new bubbles
         while newBubbles.count < randomCount {
             let randomColor = getRandomBubbleColor()
             let points = getPoints(for: randomColor)
             
-            // Try to find a valid position for the new bubble
             if let position = findValidPosition(for: newBubbles) {
                 newBubbles.append(Bubble(color: randomColor, points: points, position: position))
+            } else {
+                print("Failed to find valid position for new bubble")
             }
         }
         
@@ -188,20 +189,18 @@ struct ContentView: View {
     }
     
     func findValidPosition(for existingBubbles: [Bubble]) -> CGPoint? {
-        let maxAttempts = 50 // Prevent infinite loops
+        let maxAttempts = 50
         var attempts = 0
         
-        // Ensure we have valid screen dimensions
         guard screenSize.width > 0, screenSize.height > 0 else {
+            print("Invalid screen size: \(screenSize)")
             return nil
         }
         
         while attempts < maxAttempts {
-            // Generate random position within safe bounds
             let x = CGFloat.random(in: bubbleRadius...(screenSize.width - bubbleRadius))
             let y = CGFloat.random(in: bubbleRadius...(screenSize.height - bubbleRadius))
             
-            // Ensure we have valid coordinates
             guard !x.isNaN && !y.isNaN else {
                 attempts += 1
                 continue
@@ -209,13 +208,12 @@ struct ContentView: View {
             
             let newPosition = CGPoint(x: x, y: y)
             
-            // Check if this position overlaps with any existing bubble
             let isOverlapping = existingBubbles.contains { existingBubble in
                 let distance = sqrt(
                     pow(existingBubble.position.x - newPosition.x, 2) +
                     pow(existingBubble.position.y - newPosition.y, 2)
                 )
-                return distance < bubbleRadius * 2 // Minimum distance between bubble centers
+                return distance < bubbleRadius * 2
             }
             
             if !isOverlapping {
@@ -225,7 +223,7 @@ struct ContentView: View {
             attempts += 1
         }
         
-        return nil // Could not find valid position after max attempts
+        return nil
     }
     
     func getRandomBubbleColor() -> String {
@@ -239,42 +237,33 @@ struct ContentView: View {
             }
         }
         
-        return "red" // Default color in case something goes wrong
+        return "red"
     }
     
     func getPoints(for color: String) -> Int {
         switch color {
-        case "red":
-            return 1
-        case "pink":
-            return 2
-        case "green":
-            return 5
-        case "blue":
-            return 8
-        case "black":
-            return 10
-        default:
-            return 0
+        case "red": return 1
+        case "pink": return 2
+        case "green": return 5
+        case "blue": return 8
+        case "black": return 10
+        default: return 0
         }
     }
     
     func bubbleTapped(_ bubble: Bubble) {
         score += bubble.points
         
-        // Handle consecutive taps for combo points
         if consecutivePops > 0 {
             score += Int(Double(bubble.points) * 1.5) - bubble.points
         }
         
         consecutivePops += 1
         
-        // Remove tapped bubble
         bubbles.removeAll { $0.position == bubble.position }
     }
     
     func endGame() {
-        // Save high score if it's a new high score
         if HighScoreManager.shared.isHighScore(score) {
             let highScore = HighScore(playerName: playerName, score: score)
             HighScoreManager.shared.addHighScore(highScore)

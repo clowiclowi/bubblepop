@@ -1,3 +1,6 @@
+
+//settingsView.swift
+
 import SwiftUI
 
 struct GameSettings {
@@ -16,21 +19,19 @@ struct SettingsView: View {
             Form {
                 Section(header: Text("Game Settings")) {
                     Stepper("Game Time: \(settings.gameTime) seconds", value: $settings.gameTime, in: 30...120, step: 5)
-                        .onChange(of: settings.gameTime) { newValue in
-                            // Ensure the value is within valid range
-                            if newValue < 30 {
+                        .onChange(of: settings.gameTime) {
+                            if settings.gameTime < 30 {
                                 settings.gameTime = 30
-                            } else if newValue > 120 {
+                            } else if settings.gameTime > 120 {
                                 settings.gameTime = 120
                             }
                         }
                     
                     Stepper("Max Bubbles: \(settings.maxBubbles)", value: $settings.maxBubbles, in: 5...30, step: 1)
-                        .onChange(of: settings.maxBubbles) { newValue in
-                            // Ensure the value is within valid range
-                            if newValue < 5 {
+                        .onChange(of: settings.maxBubbles) {
+                            if settings.maxBubbles < 5 {
                                 settings.maxBubbles = 5
-                            } else if newValue > 30 {
+                            } else if settings.maxBubbles > 30 {
                                 settings.maxBubbles = 30
                             }
                         }
@@ -51,4 +52,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView(settings: .constant(GameSettings.defaultSettings))
-} 
+}
+
