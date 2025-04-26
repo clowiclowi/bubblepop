@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var bubbleRadius: CGFloat = 20 // Half of bubble width/height
     @State private var settings = GameSettings.defaultSettings
     @State private var showSettings = false
+    @State private var showHighScores = false
 
     let bubbleColors = ["red", "pink", "green", "blue", "black"]
     let bubbleProbabilities: [String: Double] = [
@@ -39,6 +40,14 @@ struct ContentView: View {
                             .padding()
                         
                         Spacer()
+                        
+                        Button(action: {
+                            showHighScores = true
+                        }) {
+                            Image(systemName: "trophy")
+                                .font(.title)
+                                .padding()
+                        }
                         
                         Button(action: {
                             showSettings = true
@@ -68,10 +77,40 @@ struct ContentView: View {
                     }
                     
                     if isGameOver {
-                        let highScore = UserDefaults.standard.integer(forKey: "highScore")
-                        Text("Game Over! Your final score is \(score)\nHigh Score: \(highScore)")
-                            .font(.headline)
+                        VStack {
+                            let highScores = HighScoreManager.shared.getHighScores()
+                            Text("Game Over!")
+                                .font(.largeTitle)
+                                .padding()
+                            
+                            Text("Your final score: \(score)")
+                                .font(.title)
+                                .padding()
+                            
+                            if HighScoreManager.shared.isHighScore(score) {
+                                Text("New High Score! 🎉")
+                                    .font(.title2)
+                                    .foregroundColor(.green)
+                                    .padding()
+                            }
+                            
+                            Button(action: {
+                                isGameOver = false
+                                startGame()
+                            }) {
+                                Text("Play Again")
+                                    .font(.title2)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(10)
+                            }
                             .padding()
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(20)
+                        .shadow(radius: 10)
                     }
                     
                     Spacer()
@@ -85,6 +124,9 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView(settings: $settings)
+            }
+            .sheet(isPresented: $showHighScores) {
+                HighScoreView()
             }
         }
     }
@@ -217,10 +259,10 @@ struct ContentView: View {
     }
     
     func endGame() {
-        // Save high score if it's higher than the current one
-        let highScore = UserDefaults.standard.integer(forKey: "highScore")
-        if score > highScore {
-            UserDefaults.standard.set(score, forKey: "highScore") // Save the new high score
+        // Save high score if it's a new high score
+        if HighScoreManager.shared.isHighScore(score) {
+            let highScore = HighScore(playerName: playerName, score: score)
+            HighScoreManager.shared.addHighScore(highScore)
         }
         isGameOver = true
     }
