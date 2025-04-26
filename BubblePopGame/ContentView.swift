@@ -16,7 +16,9 @@ struct ContentView: View {
     @State var settings = GameSettings.defaultSettings
     @State var showSettings = false
     @State var showHighScores = false
-    @State var isScreenSizeReady = false
+    @State var lastPopColor: String? = nil
+    @State var gameTimer: Timer? = nil
+    @State var movementTimer: Timer? = nil
 
     let bubbleColors = ["red", "pink", "green", "blue", "black"]
     let bubbleProbabilities: [String: Double] = [
@@ -59,9 +61,23 @@ struct ContentView: View {
                         }
                     }
                     
-                    GameTimeView(timeRemaining: $timeRemaining)
-                    
-                    ScoreView(score: $score)
+                    HStack {
+                        GameTimeView(timeRemaining: $timeRemaining)
+                        
+                        Spacer()
+                        
+                        VStack {
+                            Text("Score: \(score)")
+                                .font(.title)
+                            
+                            if let highScore = HighScoreManager.shared.getHighScores().first {
+                                Text("High Score: \(highScore.score)")
+                                    .font(.headline)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .padding()
+                    }
                     
                     ZStack {
                         ForEach(bubbles, id: \.position) { bubble in
@@ -74,7 +90,6 @@ struct ContentView: View {
                     .background(Color(.systemBackground))
                     .onAppear {
                         screenSize = geometry.size
-                        isScreenSizeReady = true
                         print("Screen size set to: \(screenSize)")
                     }
                     .onChange(of: geometry.size) { _, newSize in
@@ -82,7 +97,6 @@ struct ContentView: View {
                         print("Screen size updated to: \(newSize)")
                     }
 
-                    
                     if isGameOver {
                         VStack {
                             Text("Game Over!")
@@ -125,9 +139,7 @@ struct ContentView: View {
             .padding()
             .onAppear {
                 if isGameStarted {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        startGame()
-                    }
+                    startGame()
                 }
             }
             .sheet(isPresented: $showSettings) {
@@ -139,126 +151,168 @@ struct ContentView: View {
         }
     }
     
-    struct ScoreView: View {
-        @Binding var score: Int
-
-        var body: some View {
-            Text("Score: \(score)")
-                .font(.title)
-                .padding()
-        }
-    }
-
     func startGame() {
-        guard isScreenSizeReady else {
-            print("Waiting for screen size to be ready...")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                startGame()
-            }
-            return
-        }
-        
         print("Starting game with screen size: \(screenSize)")
         score = 0
         isGameOver = false
         timeRemaining = settings.gameTime
         bubbles = []
+        lastPopColor = nil
         
-        generateBubbles()
-        print("Initial bubbles generated: \(bubbles.count)")
+        // Generate initial bubbles
+        generateInitialBubbles()
         
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+        // Start game timer
+        gameTimer?.invalidate()
+        gameTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
                 timeRemaining -= 1
+                refreshBubbles()
             } else {
                 endGame()
             }
         }
+        
+        // Start movement timer
+        movementTimer?.invalidate()
+        movementTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { _ in
+            updateBubblePositions()
+        }
     }
     
-    func generateBubbles() {
-        guard isScreenSizeReady, screenSize.width > 0, screenSize.height > 0 else {
-            print("Cannot generate bubbles: Screen size not ready")
-            return
-        }
+    func generateInitialBubbles() {
+        guard screenSize.width > 0, screenSize.height > 0 else { return }
         
-        let randomCount = Int.random(in: 1...min(settings.maxBubbles, 10))
+        let bubbleCount = min(settings.maxBubbles, 10)
         var newBubbles: [Bubble] = []
         
-        // Keep existing bubbles that have valid positions
-        newBubbles.append(contentsOf: bubbles.filter { bubble in
-            !bubble.position.x.isNaN && !bubble.position.y.isNaN
-        })
+        // Create a grid of possible positions
+        let columns = Int(screenSize.width / (bubbleRadius * 2.5))
+        let rows = Int(screenSize.height / (bubbleRadius * 2.5))
         
-        // Generate new bubbles
-        let maxAttempts = 5
-        var attempts = 0
-        
-        while newBubbles.count < randomCount && attempts < maxAttempts {
+        for _ in 0..<bubbleCount {
+            let column = Int.random(in: 0..<columns)
+            let row = Int.random(in: 0..<rows)
+            
+            let x = CGFloat(column) * (bubbleRadius * 2.5) + bubbleRadius
+            let y = CGFloat(row) * (bubbleRadius * 2.5) + bubbleRadius
+            
             let randomColor = getRandomBubbleColor()
             let points = getPoints(for: randomColor)
             
-            if let position = findValidPosition(for: newBubbles) {
-                newBubbles.append(Bubble(color: randomColor, points: points, position: position))
-            }
-            attempts += 1
+            // Generate random velocity based on remaining time
+            let speed = 1.0 + (60.0 - Double(timeRemaining)) / 60.0
+            let angle = Double.random(in: 0..<2 * .pi)
+            let velocity = CGVector(dx: cos(angle) * speed, dy: sin(angle) * speed)
+            
+            newBubbles.append(Bubble(color: randomColor, points: points, position: CGPoint(x: x, y: y), velocity: velocity))
         }
         
         bubbles = newBubbles
     }
     
-    func findValidPosition(for existingBubbles: [Bubble]) -> CGPoint? {
-        let maxAttempts = 10
-        var attempts = 0
+    func updateBubblePositions() {
+        var updatedBubbles: [Bubble] = []
         
-        // Validate screen size
-        guard screenSize.width > bubbleRadius * 2,
-              screenSize.height > bubbleRadius * 2,
-              !screenSize.width.isNaN,
-              !screenSize.height.isNaN else {
-            print("Invalid screen size: \(screenSize)")
-            return nil
+        for var bubble in bubbles {
+            // Update position based on velocity
+            bubble.position.x += bubble.velocity.dx
+            bubble.position.y += bubble.velocity.dy
+            
+            // Bounce off screen edges
+            if bubble.position.x < bubbleRadius || bubble.position.x > screenSize.width - bubbleRadius {
+                bubble.velocity.dx *= -1
+            }
+            if bubble.position.y < bubbleRadius || bubble.position.y > screenSize.height - bubbleRadius {
+                bubble.velocity.dy *= -1
+            }
+            
+            // Keep bubble within bounds
+            bubble.position.x = max(bubbleRadius, min(screenSize.width - bubbleRadius, bubble.position.x))
+            bubble.position.y = max(bubbleRadius, min(screenSize.height - bubbleRadius, bubble.position.y))
+            
+            updatedBubbles.append(bubble)
         }
         
-        // Pre-calculate the valid area with safety margins
-        let minX = bubbleRadius
-        let maxX = max(minX, screenSize.width - bubbleRadius)
-        let minY = bubbleRadius
-        let maxY = max(minY, screenSize.height - bubbleRadius)
+        bubbles = updatedBubbles
+    }
+    
+    func refreshBubbles() {
+        guard screenSize.width > 0, screenSize.height > 0 else { return }
         
-        // Pre-calculate the minimum distance squared
-        let minDistanceSquared = pow(bubbleRadius * 2, 2)
+        // Remove some random bubbles
+        let bubblesToRemove = Int.random(in: 0...bubbles.count / 2)
+        bubbles.removeLast(bubblesToRemove)
         
-        while attempts < maxAttempts {
-            // Generate random position with validation
-            let x = CGFloat.random(in: minX...maxX)
-            let y = CGFloat.random(in: minY...maxY)
+        // Add new bubbles
+        let newBubbleCount = min(settings.maxBubbles - bubbles.count, 5)
+        for _ in 0..<newBubbleCount {
+            let randomColor = getRandomBubbleColor()
+            let points = getPoints(for: randomColor)
             
-            // Validate generated coordinates
-            guard !x.isNaN && !y.isNaN,
-                  x >= minX && x <= maxX,
-                  y >= minY && y <= maxY else {
-                attempts += 1
-                continue
-            }
+            // Generate random position
+            let x = CGFloat.random(in: bubbleRadius...(screenSize.width - bubbleRadius))
+            let y = CGFloat.random(in: bubbleRadius...(screenSize.height - bubbleRadius))
             
-            let newPosition = CGPoint(x: x, y: y)
+            // Generate random velocity
+            let speed = 1.0 + (60.0 - Double(timeRemaining)) / 60.0
+            let angle = Double.random(in: 0..<2 * .pi)
+            let velocity = CGVector(dx: cos(angle) * speed, dy: sin(angle) * speed)
             
-            // Check for overlaps using squared distance
-            let isOverlapping = existingBubbles.contains { existingBubble in
-                let dx = existingBubble.position.x - newPosition.x
-                let dy = existingBubble.position.y - newPosition.y
-                return (dx * dx + dy * dy) < minDistanceSquared
-            }
-            
-            if !isOverlapping {
-                return newPosition
-            }
-            
-            attempts += 1
+            bubbles.append(Bubble(color: randomColor, points: points, position: CGPoint(x: x, y: y), velocity: velocity))
         }
+    }
+    
+    func bubbleTapped(_ bubble: Bubble) {
+        // Calculate score with consecutive pop bonus
+        var points = bubble.points
+        if let lastColor = lastPopColor, lastColor == bubble.color {
+            points = Int(Double(points) * 1.5)
+        }
+        score += points
+        lastPopColor = bubble.color
         
-        return nil
+        // Remove the popped bubble with animation
+        if let index = bubbles.firstIndex(where: { $0.position == bubble.position }) {
+            var poppedBubble = bubbles[index]
+            poppedBubble.scale = 0.1
+            poppedBubble.opacity = 0
+            bubbles[index] = poppedBubble
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                bubbles.remove(at: index)
+                generateNewBubble()
+            }
+        }
+    }
+    
+    func generateNewBubble() {
+        guard screenSize.width > 0, screenSize.height > 0 else { return }
+        
+        let randomColor = getRandomBubbleColor()
+        let points = getPoints(for: randomColor)
+        
+        // Generate random position
+        let x = CGFloat.random(in: bubbleRadius...(screenSize.width - bubbleRadius))
+        let y = CGFloat.random(in: bubbleRadius...(screenSize.height - bubbleRadius))
+        
+        // Generate random velocity
+        let speed = 1.0 + (60.0 - Double(timeRemaining)) / 60.0
+        let angle = Double.random(in: 0..<2 * .pi)
+        let velocity = CGVector(dx: cos(angle) * speed, dy: sin(angle) * speed)
+        
+        // Add new bubble with animation
+        var newBubble = Bubble(color: randomColor, points: points, position: CGPoint(x: x, y: y), velocity: velocity)
+        newBubble.scale = 0.1
+        newBubble.opacity = 0
+        bubbles.append(newBubble)
+        
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            if let index = bubbles.firstIndex(where: { $0.position == newBubble.position }) {
+                bubbles[index].scale = 1.0
+                bubbles[index].opacity = 1.0
+            }
+        }
     }
     
     func getRandomBubbleColor() -> String {
@@ -286,23 +340,10 @@ struct ContentView: View {
         }
     }
     
-    func bubbleTapped(_ bubble: Bubble) {
-        score += bubble.points
-        
-        if consecutivePops > 0 {
-            score += Int(Double(bubble.points) * 1.5) - bubble.points
-        }
-        
-        consecutivePops += 1
-        
-        // Remove the popped bubble
-        bubbles.removeAll { $0.position == bubble.position }
-        
-        // Immediately generate a new bubble to replace it
-        generateBubbles()
-    }
-    
     func endGame() {
+        gameTimer?.invalidate()
+        movementTimer?.invalidate()
+        
         if HighScoreManager.shared.isHighScore(score) {
             let highScore = HighScore(playerName: playerName, score: score)
             HighScoreManager.shared.addHighScore(highScore)
